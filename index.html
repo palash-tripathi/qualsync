@@ -244,10 +244,123 @@
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
   }
+
+  /* ============ login gate ============ */
+  .login-gate {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 32px 18px;
+    background:
+      radial-gradient(1200px 600px at 16% -10%, rgba(77,163,255,.14), transparent 60%),
+      radial-gradient(900px 500px at 100% 110%, rgba(224,164,88,.08), transparent 60%),
+      var(--bg);
+  }
+  .login-card {
+    width: min(440px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)) , var(--bg-card);
+    padding: 28px 26px 24px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.28);
+  }
+  .login-kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--flame);
+    margin-bottom: 10px;
+  }
+  .login-title {
+    font-family: var(--serif);
+    font-size: 34px;
+    line-height: 1;
+    letter-spacing: -.02em;
+    margin-bottom: 8px;
+  }
+  .login-note {
+    color: var(--text-dim);
+    margin-bottom: 22px;
+  }
+  .login-grid {
+    display: grid;
+    gap: 12px;
+  }
+  .login-grid label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .login-grid input {
+    width: 100%;
+    background: var(--bg-raise);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 14px;
+    font-family: var(--sans);
+  }
+  .login-grid input:focus {
+    outline: none;
+    border-color: var(--flame-deep);
+  }
+  .login-submit {
+    margin-top: 8px;
+    width: 100%;
+  }
+  .login-hint {
+    margin-top: 12px;
+    color: var(--amber);
+    min-height: 20px;
+    font-size: 12.5px;
+  }
+  .auth-chip {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-raise);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 7px 11px;
+    cursor: pointer;
+  }
+  .auth-chip:hover { border-color: var(--flame-deep); color: var(--flame); }
+
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div id="loginGate" class="login-gate">
+  <div class="login-card">
+    <div class="login-kicker">Team Access</div>
+    <h1 class="login-title">Qualsync</h1>
+    <p class="login-note">Sign in to open the welder normalization console.</p>
+    <form id="loginForm" novalidate>
+      <div class="login-grid">
+        <div>
+          <label for="loginUser">Username</label>
+          <input id="loginUser" type="text" autocomplete="username" required>
+        </div>
+        <div>
+          <label for="loginPass">Password</label>
+          <input id="loginPass" type="password" autocomplete="current-password" required>
+        </div>
+      </div>
+      <button type="submit" class="btn-run login-submit">Open Workspace</button>
+      <div id="loginHint" class="login-hint"></div>
+    </form>
+  </div>
+</div>
+
+<div id="appShell" class="wrap hidden">
 
   <header class="masthead">
     <div class="brand-row">
@@ -255,7 +368,10 @@
         <span class="mark">QS</span>
         <h1>Qualsync</h1>
       </div>
-      <span class="env-chip">WELDER QUALIFICATION &middot; <b>PROD IMPORT PREP</b></span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="env-chip">WELDER QUALIFICATION &middot; <b>PROD IMPORT PREP</b></span>
+        <button id="btnLogout" class="auth-chip" type="button" title="Sign out">Log out</button>
+      </div>
     </div>
     <p class="lede">Two exports go in. One import-ready table comes out — <em>every welder, one row, PROD UUID attached.</em></p>
   </header>
@@ -367,6 +483,41 @@
 <script>
 (function () {
   'use strict';
+  var AUTH_USER = 'admin';
+  var AUTH_PASS_B64 = 'RmxhbWVSYWlsITIwMjYh';
+  var AUTH_KEY = 'qualsync-auth-v1';
+
+  function unlocked() { return sessionStorage.getItem(AUTH_KEY) === 'ok'; }
+  function openApp() {
+    document.getElementById('loginGate').classList.add('hidden');
+    document.getElementById('appShell').classList.remove('hidden');
+  }
+  function closeApp() {
+    document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('loginGate').classList.remove('hidden');
+    document.getElementById('loginPass').value = '';
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var u = document.getElementById('loginUser').value.trim();
+    var p = document.getElementById('loginPass').value;
+    if (u === AUTH_USER && p === atob(AUTH_PASS_B64)) {
+      sessionStorage.setItem(AUTH_KEY, 'ok');
+      document.getElementById('loginHint').textContent = '';
+      openApp();
+      return;
+    }
+    document.getElementById('loginHint').textContent = 'Invalid username or password.';
+  });
+
+  document.getElementById('btnLogout').addEventListener('click', function () {
+    sessionStorage.removeItem(AUTH_KEY);
+    closeApp();
+  });
+
+  if (unlocked()) openApp();
+
   var clientWB = null, prodWB = null, outputRows = null;
 
   /* ---------- data helpers ---------- */
